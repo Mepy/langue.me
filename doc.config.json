@@ -1,0 +1,3 @@
+{
+    "source": { "includePattern": ".+\\.(m|c)?js(doc|x)?$" } 
+}
