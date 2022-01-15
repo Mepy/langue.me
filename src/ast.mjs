@@ -2,11 +2,12 @@
 // 2022/01/13 10:31-10:41
 // 2022/01/14 22:10-
 
+
 /* --- Type --- */
-const bool_type = ({tag:"bool_ty",body:undefined}) 
-const char_type = ({tag:"char_ty",body:undefined})
-const int_type = ({tag:"int_ty",body:undefined})
-const float_type = ({tag:"float_ty",body:undefined})
+const bool_type = ({tag:"bool_type"}) 
+const char_type = ({tag:"char_type"})
+const int_type = ({tag:"int_type"})
+const float_type = ({tag:"float_type"})
 /* --- Type --- */
 
 
@@ -49,12 +50,13 @@ const sl_gen = (left,right)=>({tag:"sl",body:{left,right}}) // left "<<" left
 const sr_gen = (left,right)=>({tag:"sr",body:{left,right}}) // left ">>" right
 
 // binary operation - function
-const fun_gen = (arg,ret)=>({tag:"fun",body:{arg,ret}})
+const fun_gen = (arg,ret,type)=>({tag:"fun",body:{arg,ret},type})
 const call_gen = (fun,arg)=>({tag:"call",body:{fun,arg}})
 
 // binary operation - variable
-const var_gen = (name,value)=>({tag:"var",body:{name,value}}) // mutable
-const let_gen = (name,value)=>({tag:"let",body:{name,value}}) // immutable
+const name_gen = (name,type)=>({tag:"name",body:{name},type})
+const var_gen = (name,value,type)=>({tag:"var",body:{name,value},type}) // mutable
+const let_gen = (name,value,type)=>({tag:"let",body:{name,value},type}) // immutable
 
 /**
  * ternary operation - temporary variable <br>
@@ -105,3 +107,12 @@ const ref_gen = type=>({tag:"ref",body:{type}}) // only immutable
 
 /* --- Module --- */
 // TODO with universal and existential types
+
+
+export {
+    bool_type, char_type, int_type, float_type,
+    int_gen, bool_gen,
+    fun_gen,call_gen,
+    name_gen,
+    arrow_gen,
+}
