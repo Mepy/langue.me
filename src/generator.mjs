@@ -21,6 +21,33 @@ const Array = (Type, length)=>({tag:"Array", body:{Type, length}, type:Type})
 const List = (Type)=>({tag:"List", body:{Type}, type:Type})
 const Tuple = (...Types)=>({tag:"List", body:{Types}, type:Type})
 const Struct = (Struct)=>({tag:"Struct", body:{Struct}, type:Type})
+
+/**
+ * Overload Type , or Sum Type <br>
+ * @param {Type} Fst
+ * @param {Type} Snd 
+ * @returns {Type.Overload}
+ */
+const Overload = (Fst, Snd)=>({tag:"Overload", body:{Overload:[
+    ...(Fst.tag=="Overload"?Fst.body.Overload:[Fst]),
+    ...(Snd.tag=="Overload"?Snd.body.Overload:[Snd]),
+]}})
+
+/**
+ * Arrow Type , or Type of functions <br>
+ * @param {Type} Para 
+ * @param {Type} Body 
+ * @returns {Type.Arrow}
+ */
+const Arrow = (Para, Body)=>({tag:"Arrow", body:{Para, Body}, type:Type})
+
+/**
+ * Unknown Type, used for Type infering
+ * @param {Int} Counter 
+ * @returns 
+ */
+const Unknown = (Counter)=>({tag:"Unknown", body:{Counter}, type:Type})
+
 /* --- Type --- */
 
 /* --- Term --- */
@@ -32,6 +59,7 @@ const array = (array, type)=>({tag:"array",body:{array}, type}) // [a,b,c] for C
 const list = (list, type)=>({tag:"list",body:{list}, type}) // [a;b;c] linked list implemented by polymorphism
 const tuple = (tuple, type)=>({tag:"tuple",body:{tuple}, type}) // (a, b, c)
 const struct = (struct, type)=>({tag:"struct",body:{struct}, type}) // {key:value,key:value,key:value}
+const sequence = (sequence, type)=>({tag:"sequence",body:{sequence}, type}) // code sequence = {term, term, term} no block scope
 const block = (block, type)=>({tag:"block",body:{block}, type}) // code block = {term;term;term;}
 
 
@@ -57,18 +85,6 @@ const unary = (oper, term, type)=>({tag:"unary",body:{oper, term}, type})
 const binary = (left, oper, right, type)=>({tag:"binary",body:{left,oper,right}, type})
 
 /**
- * ternary operator <br>
- * if cond then fst else snd
- * cond ? fst : snd
- * @param {Term:B1} cond 
- * @param {Term} fst 
- * @param {Term} snd 
- * @param {Type} type 
- * @returns Term
- */
-const ternary = (cond, fst, snd, type)=>({tag:"ternary",body:{cond, fst, snd}, type})
-
-/**
  * introduce a variable, mutable or immutable <br>
  * in the 1st walking ask, it will becomes Term.name <br>
  * @param {Boolean} muty - mutability 
@@ -79,6 +95,16 @@ const ternary = (cond, fst, snd, type)=>({tag:"ternary",body:{cond, fst, snd}, t
  * 
  */
 const variable = (muty, name, term, type)=>({tag:"variable", body:{muty, name, term}, type})
+
+/**
+ * introduce a Type variable <br>
+ * in the 1st walking ask, it will becomes Type.Name <br>
+ * @param {Type.Name} Name
+ * @param {Type} Type_
+ * @returns {Type.Variable}
+ * 
+ */
+const Variable = (Name, Type_)=>({tag:"Variable", body:{Name, Type:Type_}, type:Type})
 
 // Core AST in Type System
 /**
@@ -92,7 +118,7 @@ const name = (name, type)=>({tag:"name", body:{name}, type})
 
 /**
  * implement of function, or abstraction in lambda calculus <br>
- * @param {Term.name} para - currently no support for destructing Term.tuple or Term.struct of name
+ * @param {Term.name+Term.tuple} para - currently no support for destructing Term.struct of name
  * @param {Term} body 
  * @param {Type} type 
  * @returns {Term.func}
@@ -108,15 +134,28 @@ const func = (para, body, type)=>({tag:"func", body:{para, body}, type})
 const call = (func, para, type)=>({tag:"call", body:{func, para}, type})
 
 /**
+ * ternary operator <br>
+ * if cond then fst else snd <br>
+ * cond ? fst : snd <br>
+ * because Typeof(fst) = Typeof(snd) = any Type OK
+ * @param {Term:B1} cond 
+ * @param {Term} fst 
+ * @param {Term} snd 
+ * @param {Type} type 
+ * @returns Term
+ */
+const ternary = (cond, fst, snd, type)=>({tag:"ternary",body:{cond, fst, snd}, type})
+
+/**
  * dot operator(binary) needs type info to determinate <br>
  * obj.name <br>
  * @param {Term} obj 
- * @param {String} name 
+ * @param {Term.name} method
+ * @param {Term.name} field
  * @param {Type} type 
  * @returns {Term.dot} 
  */
-const dot = (obj, name, type)=>({tag:"dot", body:{obj, name}, type})
-
+const dot = (obj, method, field, type)=>({tag:"dot", body:{obj, method, field}, type})
 
 /**
  * overload function needs type info to determinate <br>
@@ -130,7 +169,40 @@ const overload = (fst, snd)=>({tag:"overload", body:{overload:[
 ]}})
 
 
+/**
+ * name of Type variable, or Type variable in system F <br>
+ * situations when a Type variable is consumed.
+ * @param {String} Name  
+ * @returns Type.Name
+ */
+const Name = (Name)=>({tag:"Name", body:{Name}, type:Type})
+
+/**
+ * Type abstraction in system F <br>
+ * @param {Term.name} Para
+ * @param {Term|Type} body 
+ * @returns {Type.Func}
+ */
+const Func = (Para, body)=>({tag:"Func", body:{Para, body}, type:Type})
+ /**
+  * Type application in System <br>
+  * @param {Type} Func 
+  * @param {Term} Para 
+  * @returns {Type.Call}
+  */
+const Call = (Func, Para)=>({tag:"Call", body:{Func, Para}, type:Type})
+
+const lib = (identifier)=>({tag:"lib", body:({identifier})})
+
 export {
     U0, U1, U2, U4, U8, I1, I2, I4, I8, F4, F8, B1, C1, C2, C4,
-    Array, List, Tuple, Struct
+    Array, List, Tuple, Struct, 
+    Overload, Arrow, Unknown, 
+    unit, literal, array, list, tuple, struct, block, sequence,
+    unary, binary,
+    variable, Variable,
+    name, func, call,
+    dot, overload, ternary,
+    Name, Func, Call,
+    lib
 }
