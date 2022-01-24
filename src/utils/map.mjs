@@ -7,7 +7,7 @@
  * 
  */
 
-const gen = (map,parent)=>{
+const gen = (parent,map)=>{
     if(map==undefined)
         map={}
     const variable = new Proxy(map,{

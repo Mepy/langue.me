@@ -6,6 +6,15 @@ import * as log from "./utils/log.mjs"
 import "./utils/Object.map.mjs"
 
 let test =  // gen.variable(true, "x", gen.literal(3, gen.I8))
+// call_decurry
+/*
+gen.call(
+    gen.call(gen.name("operator+"),gen.literal(3,gen.I8)),
+    gen.literal(2,gen.I8)
+)
+*/
+// func_decurry
+
 gen.variable(false, "operator+",
     gen.func(gen.name("x"),
         gen.func(gen.tuple([gen.name("y"),gen.name("z")]),
@@ -14,6 +23,8 @@ gen.variable(false, "operator+",
             )
         )
     )
+)
+
 /*
     gen.func(gen.tuple([gen.name("x"),gen.name("y")]),
         gen.binary(gen.literal(5, gen.I8), "+",
@@ -21,7 +32,7 @@ gen.variable(false, "operator+",
         )
     )
     */
-)
+
 /*
 gen.block([
     gen.variable(false, "x", 
@@ -59,7 +70,7 @@ gen.block([
 ])
 */
 
-
+const type_eq = (Ty1, Ty2)=>(Ty1==Ty2);
 
 const table = {}
 const name_map = map.gen()
@@ -70,21 +81,30 @@ var Unknown_Type_Counter = 0
 
 const func_decurry = func=>{
     if(func.body.tag!="func")
-        return func
+        return ({paras:[func.para], body:func.body})
     else
     {
         const new_func = func_decurry(func.body.body) // func.body is a term, body of term
-        const new_para = gen.tuple([func.para, new_func.para])
-        return ({para:new_para, body:new_func.body})
+        const new_para = [func.para, ...new_func.paras]
+        return ({paras:new_para, body:new_func.body})
     }
 }
-const para_decurry = (para)=>
-    (para.tag=="name")?[para.body.name]
-    :(para.tag=="tuple")?para.body.tuple
-        .map(para_decurry)
-        .reduce((total,next)=>[...total, ...next], [])
-    :(()=>{throw err.para_format(para)})()
+const destruct = para=>(para.tag!="tuple")
+?[para]
+:para.body.tuple
+    .map(destruct)
+    .reduce((total,next)=>[...total, ...next], [])
 
+const call_decurry = call=>{
+    if(call.func.tag!="call")
+        return ({func:call.func, paras:[call.para]})
+    else
+    {
+        const new_call = call_decurry(call.func.body) // call.func is a term, body of term
+        const new_para = gen.tuple([...new_call.paras, call.para])
+        return ({func:new_call.func, paras:new_para})
+    }   
+}
 
 const walk = ({tag, body, type, location}, table, name_map)=>{
 const res_walk = ({
@@ -94,7 +114,7 @@ const res_walk = ({
     "list":({list})=>gen.list(list.map(item=>walk(item, table, name_map))),
     "tuple":({tuple})=>gen.array(tuple.map(item=>walk(item, table, name_map))),
     "sequence":({sequence})=>gen.sequence(sequence.map(item=>walk(item, table, name_map))),
-    "block":({block})=>gen.block(block.map(item=>walk(item, table, name_map))),
+    "block":({block})=>gen.block(block.map(item=>walk(item, table, map.gen(name_map)))), // new scope
     "struct":({struct})=>gen.struct(struct.map(item=>walk(item, table, name_map))),
     
     "ternary":({cond,fst,snd})=>gen.ternary(
@@ -111,7 +131,6 @@ const res_walk = ({
     "variable":({muty, name:name, term})=>{
         if(name in name_map)
         {
-            
             if(term.tag!="func") 
             // no muty overload for non-func(even after simply compile-time eval)
                 throw err.declare_twice(name, location)
@@ -120,7 +139,6 @@ const res_walk = ({
             const entry = table[counter]
             if(muty|entry.muty)
                 throw err.mutable_overload_function(name, location)
-            console.log(entry.term)
             
             if(entry.term.tag!="func"&&entry.term.tag!="overload")
                 throw err.declare_twice(name, location)
@@ -149,21 +167,26 @@ const res_walk = ({
         }
     },
     "func":(func)=>{
-        const {para, body} = func_decurry(func)
-        const decurried_para = para_decurry(para)
-        const new_map = map.gen({},name_map)
-        decurried_para.forEach(name=>{
+        const {paras, body} = func_decurry(func)
+        const para = gen.tuple(paras)
+        // name resolution must support destructing tuple
+        const destructed_paras = destruct(para)
+        const new_map = map.gen(name_map)
+        destructed_paras.forEach(para=>{
+            const {body:{name}} = para
             ++name_counter
-            table[name_counter] = ({tag:"para", name:para.body.name})
+            table[name_counter] = ({tag:"para", name})
             new_map[name]=name_counter
+            para.body.name=name_counter
         })
-        return gen.func(gen.tuple(decurried_para.map(name=>gen.name(new_map[name]))),
+        return gen.func(para,
             walk(body, table, new_map),
             type, location
         )
     },
-    "call":({func, para})=>{
-        // TODO : call_decurry 
+    "call":(call)=>{
+        const {func, paras} = call_decurry(call)
+        const para = gen.tuple(paras)
         return gen.call(
             walk(func, table, name_map),
             walk(para, table, name_map)
@@ -207,8 +230,8 @@ const res_walk = ({
         )
     },
 })[tag](body)
-// 
-    if(["literal","name","func"].some(item=>item==res_walk.tag))
+// the following are values, thus no need to wrap a name shell
+    if(["literal","func","name"].some(item=>item==res_walk.tag))
         return res_walk
 
     ++name_counter
@@ -220,9 +243,11 @@ import * as I8 from "./lib/builtin/I8.mjs"
 walk(I8.header, table, name_map)
 walk(test, table, name_map)
 
+/*
 log.obj(
     test
 )
 log.json(
     table
 )
+*/

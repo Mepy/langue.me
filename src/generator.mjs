@@ -44,7 +44,7 @@ const Arrow = (Para, Body)=>({tag:"Arrow", body:{Para, Body}, type:Type})
 /**
  * Unknown Type, used for Type infering
  * @param {Int} Counter 
- * @returns 
+ * @returns {Type.Unknown}
  */
 const Unknown = (Counter)=>({tag:"Unknown", body:{Counter}, type:Type})
 
@@ -118,7 +118,7 @@ const name = (name, type)=>({tag:"name", body:{name}, type})
 
 /**
  * implement of function, or abstraction in lambda calculus <br>
- * @param {Term.name+Term.tuple} para - currently no support for destructing Term.struct of name
+ * @param {Term.name|rTerm.tuple(Term.name)} para - currently no support for destructing Term.struct of name
  * @param {Term} body 
  * @param {Type} type 
  * @returns {Term.func}
